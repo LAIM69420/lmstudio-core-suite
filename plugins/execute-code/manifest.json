@@ -1,0 +1,12 @@
+{
+  "owner": "local",
+  "name": "execute-code",
+  "type": "plugin",
+  "runner": "node",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "icon": "thumbnail.png",
+  "license": "MIT",
+  "description": "Run code in a sandboxed subprocess — Python, JavaScript, or shell. Includes configurable timeout and output limits.",
+  "categories": ["tools"]
+}

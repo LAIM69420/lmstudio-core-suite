@@ -1,0 +1,12 @@
+{
+  "owner": "local",
+  "name": "read-document",
+  "type": "plugin",
+  "runner": "node",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "icon": "thumbnail.png",
+  "license": "MIT",
+  "description": "Read local files — PDF, CSV, JSON, Markdown, code, and plain text. The model can request file contents for code review, data analysis, or summarization.",
+  "categories": ["tools"]
+}

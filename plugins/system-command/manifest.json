@@ -1,0 +1,12 @@
+{
+  "owner": "local",
+  "name": "system-command",
+  "type": "plugin",
+  "runner": "node",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "icon": "thumbnail.png",
+  "license": "MIT",
+  "description": "Run whitelisted system commands (ls, git, date, du, df, pwd, etc.) in a restricted directory. Useful for project inspection and system info.",
+  "categories": ["tools"]
+}

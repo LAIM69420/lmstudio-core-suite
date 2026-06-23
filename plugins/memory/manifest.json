@@ -1,0 +1,12 @@
+{
+  "owner": "local",
+  "name": "memory",
+  "type": "plugin",
+  "runner": "node",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "icon": "thumbnail.png",
+  "license": "MIT",
+  "description": "Persistent cross-session memory for LM Studio. The model can save, recall, list, and forget facts across conversations.",
+  "categories": ["tools"]
+}
