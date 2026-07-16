@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { tool, type ToolsProvider } from "@lmstudio/sdk";
 import { buildConfigSchematics } from "./configSchematics.js";
+import { buildSearchUrl, isSafePageUrl } from "./searxng.js";
 
 const configSchematics = buildConfigSchematics();
 
@@ -27,22 +28,27 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
   const maxResults: number = config.get("maxResults");
   const safeSearch: string = config.get("safeSearch");
   const categories: string = config.get("categories");
+  const language: string = config.get("language");
+  const timeoutMs: number = config.get("timeoutMs");
   const summarizeEnabled: boolean = config.get("summarizeEnabled");
   const summarizeMaxChars: number = config.get("summarizeMaxChars");
+  const pageFetchMaxBytes: number = config.get("pageFetchMaxBytes");
 
   // ── Internal: raw search ───────────────────────────────────────────────
   async function doSearch(params: Record<string, string>): Promise<SearxngResult[]> {
-    const queryParams = new URLSearchParams({
-      format: "json",
-      safesearch: safeSearch,
-      ...params,
+    const { q, ...extra } = params;
+    const url = buildSearchUrl(searxngUrl, {
+      query: q,
+      safeSearch,
+      categories: extra.categories || categories,
+      language,
+      extra,
     });
-    if (categories.trim().length > 0) {
-      queryParams.set("categories", categories.trim());
-    }
-    const url = `${searxngUrl.replace(/\/+$/, "")}/search?${queryParams.toString()}`;
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    const response = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": "lmstudio-searxng-search/1.1" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
     const data = (await response.json()) as SearxngResponse;
     return (data.results ?? []).slice(0, maxResults);
@@ -71,12 +77,12 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
       "Set multi_hop=true for an automatic refinement loop.",
     ].join(" "),
     parameters: {
-      query: z.string().min(1).describe("The search query string"),
+      query: z.string().trim().min(1).max(500).describe("The search query string"),
 
       // Advanced filters
       date_from: z.string().optional().describe("Earliest date (ISO 8601, e.g. 2025-01-01)"),
       date_to: z.string().optional().describe("Latest date (ISO 8601, e.g. 2025-12-31)"),
-      site: z.string().optional().describe("Restrict results to a specific domain (e.g. arxiv.org)"),
+      site: z.string().trim().max(255).optional().describe("Restrict results to a domain (e.g. arxiv.org)"),
       result_type: z
         .enum(["general", "news", "files", "images", "videos", "it", "science"])
         .optional()
@@ -167,11 +173,15 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
           // Fetch full content of top results for summarization
           let fullText = "";
           for (const r of results.slice(0, 3)) {
-            if (r.url) {
+            if (r.url && isSafePageUrl(r.url)) {
               try {
                 const pageResp = await fetch(r.url, { signal: AbortSignal.timeout(5000) });
                 if (pageResp.ok) {
+                  const contentLength = Number(pageResp.headers.get("content-length") ?? "0");
+                  const contentType = pageResp.headers.get("content-type") ?? "";
+                  if (contentLength > pageFetchMaxBytes || !/text|html|json/i.test(contentType)) continue;
                   const html = await pageResp.text();
+                  if (Buffer.byteLength(html, "utf8") > pageFetchMaxBytes) continue;
                   // Strip HTML tags for rough text extraction
                   const text = html
                     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -209,6 +219,9 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
         }
         if (msg.includes("fetch") || msg.includes("connect") || msg.includes("ECONNREFUSED")) {
           return `Network error: ${msg}. Check that SearXNG is reachable.`;
+        }
+        if (msg.includes("HTTP 403")) {
+          return "Search failed with HTTP 403. Enable JSON in SearXNG under search.formats.";
         }
         return `Search error: ${msg}`;
       }
