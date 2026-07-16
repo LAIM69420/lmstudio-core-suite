@@ -17,8 +17,11 @@ export function buildConfigSchematics() {
       ],
     }, "0")
     .field("categories", "string", {}, "")
+    .field("language", "string", {}, "auto")
+    .field("timeoutMs", "numeric", { min: 1000, max: 60000, int: true }, 15000)
     .field("injectPrompt", "boolean", {}, true)
     .field("summarizeEnabled", "boolean", {}, true)
     .field("summarizeMaxChars", "numeric", { min: 500, max: 50000, int: true }, 5000)
+    .field("pageFetchMaxBytes", "numeric", { min: 10000, max: 5000000, int: true }, 1000000)
     .build();
 }

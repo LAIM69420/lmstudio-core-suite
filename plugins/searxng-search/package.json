@@ -1,12 +1,15 @@
 {
   "name": "lmstudio-searxng-search",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
+  "type": "module",
   "description": "LM Studio plugin — web search powered by a local SearXNG metasearch engine",
   "author": "LAIM69420",
   "license": "MIT",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "check": "npm test",
     "watch": "tsc --watch",
     "dev": "lms dev",
     "install:plugin": "lms dev --install --yes"
