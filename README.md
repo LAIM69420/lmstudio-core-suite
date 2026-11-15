@@ -2,7 +2,9 @@
 
 LM Studio plugins for the basics an agent needs to be useful: web search, document reading, persistent memory, sandboxed code execution, and whitelisted system commands.
 
-Five plugins, one repo, shared build setup. Each plugin is self-contained — install only the ones you want.
+Four plugins, one repo, shared build setup. Each plugin is self-contained — install only the ones you want.
+
+> **Memory moved.** Persistent memory lives in [`lmstudio-memory-core`](https://github.com/LAIM69420/lmstudio-memory-core) — SQLite-backed, 14 tools, and it also covers the context checkpointing this suite used to leave to a separate plugin. The JSON-file `memory` plugin that shipped here is retired; `lmstudio-memory-archived` holds it for reference.
 
 ## Plugins
 
@@ -10,7 +12,6 @@ Five plugins, one repo, shared build setup. Each plugin is self-contained — in
 |---|---|---|---|
 | [`searxng-search`](plugins/searxng-search) | `web_search` | SearXNG on `127.0.0.1:8080` | Self-hosted metasearch; no API key |
 | [`read-document`](plugins/read-document) | `read_file`, `file_metadata` | — | PDF, CSV, JSON, Markdown, code, plain text |
-| [`memory`](plugins/memory) | `remember`, `recall`, `memory_search`, `memory_edit`, `list_memories`, `forget`, `memory_stats` | — | SQLite-backed; survives restarts |
 | [`execute-code`](plugins/execute-code) | `execute_code` | Docker | Runs code in a Docker sandbox with timeout and output limits |
 | [`system-command`](plugins/system-command) | `run_command`, `safe` | — | Fixed allowlist (`ls`, `git`, `date`, `du`, `df`, `pwd`), restricted working directory |
 
@@ -44,7 +45,7 @@ If you run [`lmstudio-permission-manager`](https://github.com/LAIM69420/lmstudio
 
 ## Conventions
 
-- One tool namespace per plugin; tool names are prefixed by domain (`web_`, `memory_`, `file_`, `run_`).
+- One tool namespace per plugin; tool names are prefixed by domain (`web_`, `file_`, `run_`).
 - Config via `createConfigSchematics`; secrets use `{ isProtected: true }`.
 - `withToolsProvider(async (ctl) => ...)` — `ctx.getPluginConfig` is deprecated in favour of `ctl.getPluginConfig`.
 
