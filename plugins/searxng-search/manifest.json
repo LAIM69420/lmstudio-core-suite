@@ -1,6 +1,6 @@
 {
   "owner": "LAIM69420",
-  "name": "lmstudio-searxng-search",
+  "name": "searxng-search",
   "type": "plugin",
   "runner": "node",
   "version": "1.0.0",
@@ -8,5 +8,7 @@
   "icon": "thumbnail.png",
   "license": "MIT",
   "description": "Web search tool for LM Studio powered by a local SearXNG metasearch instance. Self-hosted, private, and free.",
-  "categories": ["tools"]
+  "categories": [
+    "tools"
+  ]
 }

@@ -1,8 +1,8 @@
 {
-  "name": "lmstudio-searxng-search",
+  "name": "searxng-search",
   "version": "1.0.0",
   "private": true,
-  "description": "LM Studio plugin — web search powered by a local SearXNG metasearch engine",
+  "description": "LM Studio plugin \u2014 web search powered by a local SearXNG metasearch engine",
   "author": "LAIM69420",
   "license": "MIT",
   "scripts": {
