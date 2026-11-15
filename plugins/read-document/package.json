@@ -1,8 +1,8 @@
 {
   "name": "read-document",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "LM Studio plugin — read local files of various types (PDF, DOCX, text, code)",
+  "description": "LM Studio plugin \u2014 read local files of various types (PDF, DOCX, text, code)",
   "author": "LAIM69420",
   "license": "MIT",
   "scripts": {

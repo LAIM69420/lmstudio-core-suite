@@ -1,8 +1,8 @@
 {
   "name": "execute-code",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "LM Studio plugin — sandboxed multi-language code execution",
+  "description": "LM Studio plugin \u2014 sandboxed multi-language code execution",
   "author": "LAIM69420",
   "license": "MIT",
   "scripts": {

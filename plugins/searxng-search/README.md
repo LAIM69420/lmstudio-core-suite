@@ -1,135 +1,67 @@
-# lmstudio-searxng-search
+# searxng-search
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![LM Studio](https://img.shields.io/badge/LM_Studio-1.5%2B-blue)](https://lmstudio.ai)
-[![Node](https://img.shields.io/badge/node-22%2B-green)](https://nodejs.org)
+Web search through a self-hosted SearXNG instance, optionally injecting results into the prompt and summarising them.
 
-**LM Studio plugin** that exposes a `web_search` tool backed by a local [SearXNG](https://docs.searxng.org/) instance — a privacy-respecting, self-hosted metasearch engine.
+| | |
+|---|---|
+| Type | tools |
+| Tools | 1 |
+| Requires network | no |
+| Requires external service | yes |
+| Destructive | no |
+| Version | 1.0.0 |
 
-When a loaded model supports tool calling, it can use `web_search` to find current information, news, facts, or any topic requiring up-to-date data. Results include titles, URLs, and snippets.
+## Tools
 
----
+| Tool | What it does |
+|---|---|
+| `web_search` | Search SearXNG and return titles, URLs, and snippets |
 
-## Features
+## Requirements
 
-- **`web_search` tool** — available to any tool-capable model loaded in LM Studio
-- **Configurable** — SearXNG URL, max results, safe search level, category filtering, prompt injection toggle
-- **Perplexity-style prompt** — optionally injects web search guidelines into the system prompt to encourage effective multi-query search and citation
-- **Privacy-first** — no third-party APIs, no tracking, fully self-hosted via SearXNG
-- **Hot-reload dev** — use `lms dev` for instant iteration
-
-## Prerequisites
-
-- [LM Studio](https://lmstudio.ai) ≥ 1.5.0
-- Node.js ≥ 22
-- A running [SearXNG](https://docs.searxng.org/) instance (default: `http://localhost:8080`)
-
-### Quick SearXNG setup (Docker)
-
-```bash
-docker run -d --name searxng \
-  -p 8080:8080 \
-  -e BASE_URL=http://localhost:8080 \
-  searxng/searxng
-```
-
----
-
-## Installation
-
-### Install from source
-
-```bash
-git clone https://github.com/LAIM69420/lmstudio-searxng-search.git
-cd lmstudio-searxng-search
-npm install
-npm run install:plugin
-```
-
-### Install from LM Studio Hub (coming soon)
-
-Once published, install directly from the Hub in LM Studio's plugin browser.
-
----
+| Requirement | Detail |
+|---|---|
+| SearXNG | Reachable instance, default `http://localhost:8080`, with JSON output enabled in `settings.yml` |
 
 ## Configuration
 
-In LM Studio, go to **Settings → Plugins → LAIM69420/lmstudio-searxng-search**.
+`searxngUrl`, `maxResults`, `safeSearch`, `categories`, `injectPrompt`, `summarizeEnabled`, `summarizeMaxChars`.
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `searxngUrl` | `http://localhost:8080` | Base URL of your SearXNG instance |
-| `maxResults` | `5` | Results returned per query (1–20) |
-| `safeSearch` | `Off` | `Off` / `Moderate` / `Strict` |
-| `categories` | *(all)* | Comma-separated SearXNG categories (`general,news,science`) |
-| `injectPrompt` | `true` | Injects web search usage guidelines into the system prompt |
+Configured in LM Studio under Integrations → searxng-search; field definitions live in `src/configSchematics.ts`.
 
----
+## Privileged surface
 
-## Usage
+Sends your queries to the configured instance and returns whatever it finds. With `injectPrompt` enabled, results are inserted into every matching prompt, which consumes context whether or not you asked for a search. SearXNG aggregates other engines, so queries leave your machine even though the endpoint is local.
 
-1. Load a tool-capable model in LM Studio (e.g., any recent Llama, Qwen, Gemma, or Mistral).
-2. Start a chat and ask for something that requires up-to-date information.
-3. The model will call `web_search` automatically when it needs external data.
+## Failure modes
 
-Example queries:
-- *"What are the latest developments in quantum computing as of June 2026?"*
-- *"Compare the current prices of Nvidia RTX 5090 and AMD RX 9070 XT."*
-- *"Search for recent news about Mars colonization plans."*
+| Symptom | Cause |
+|---|---|
+| Empty results | SearXNG returns JSON only if the `json` format is enabled in its settings |
+| Connection refused | Wrong port — the container may publish 8080 while the app expects another |
 
-### Search guidelines (optional)
+## Example prompts
 
-When `injectPrompt` is enabled, every user message is prepended with a system-style instruction block that encourages the model to:
-- Use `web_search` proactively for facts, data, and recent events
-- Rephrase and re-search if initial results are sparse
-- Synthesize across multiple results and cite URLs
-- Never fabricate citations
-
----
+- "Search for the current llama.cpp release notes."
+- "Find recent discussion of Vulkan performance on RDNA2."
 
 ## Development
 
-### Project structure
-
-```
-lmstudio-searxng-search/
-├── manifest.json           # LM Studio plugin manifest
-├── package.json            # Dependencies & scripts
-├── tsconfig.json           # TypeScript config
-├── thumbnail.png           # Plugin icon
-├── src/
-│   ├── index.ts            # Entry point — registers hooks via PluginContext
-│   ├── configSchematics.ts # Config UI field definitions
-│   ├── toolsProvider.ts    # web_search tool implementation
-│   └── promptPreprocessor.ts  # Optional search guidelines injector
-├── dist/                   # Compiled JS (tsc)
-└── .lmstudio/              # Dev server bundle (generated by lms dev)
+```bash
+npm install    # also runs `lms dev --install`
+npm run build  # tsc
+node scripts/smoke.mjs   # from the suite root
 ```
 
-### Commands
+## Status
 
-| Command | Description |
-|---------|-------------|
-| `npm run build` | Type-check with `tsc` |
-| `npm run dev` | Start `lms dev` dev server with hot-reload |
-| `npm run install:plugin` | Build & install into LM Studio |
-
-### How it works
-
-1. `lms dev` generates an entry wrapper that creates a `PluginContext` with authenticated `LMStudioClient`.
-2. Our `src/index.ts` exports `main(ctx: PluginContext)` which registers the config schematics, tools provider, and prompt preprocessor.
-3. The `toolsProvider` function reads config via `ctl.getPluginConfig(...)` and creates the `web_search` tool using the `tool()` helper.
-4. When the tool runs, it `fetch`es the SearXNG JSON API, formats results, and returns them to the model.
-
----
+| Item | State |
+|---|---|
+| Compiles | yes — verified with `tsc --noEmit` against the current toolchain |
+| Tests | smoke harness: manifest validation + tool inventory |
+| Verified against | LM Studio 0.4.28 |
+| Known gaps | no behavioural tests; docs written from source review |
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
----
-
-## Acknowledgements
-
-- [LM Studio](https://lmstudio.ai) for the plugin SDK
-- [SearXNG](https://docs.searxng.org/) for the free metasearch engine
+MIT
