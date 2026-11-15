@@ -14,6 +14,7 @@ interface SearxngResult {
 }
 interface SearxngResponse {
   results?: SearxngResult[];
+  unresponsive_engines?: [string, string][];
 }
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,10 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
   const summarizeMaxChars: number = config.get("summarizeMaxChars");
 
   // ── Internal: raw search ───────────────────────────────────────────────
-  async function doSearch(params: Record<string, string>): Promise<SearxngResult[]> {
+  async function doSearch(params: Record<string, string>): Promise<{
+    results: SearxngResult[];
+    unresponsive: [string, string][];
+  }> {
     const queryParams = new URLSearchParams({
       format: "json",
       safesearch: safeSearch,
@@ -42,14 +46,47 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
     }
     const url = `${searxngUrl.replace(/\/+$/, "")}/search?${queryParams.toString()}`;
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    // SearXNG fans out to ~12 engines and returns when the slowest finishes, so a
+    // cold query can exceed 15s. The old timeout aborted those searches outright.
+    const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-    const data = (await response.json()) as SearxngResponse;
-    return (data.results ?? []).slice(0, maxResults);
+
+    const text = await response.text();
+    let data: SearxngResponse;
+    try {
+      data = JSON.parse(text) as SearxngResponse;
+    } catch {
+      // HTML usually means `json` is missing from search.formats in searxng settings.yml
+      throw new Error(
+        "SearXNG returned HTML instead of JSON. Add `json` under search.formats in settings.yml.",
+      );
+    }
+    return {
+      results: (data.results ?? []).slice(0, maxResults),
+      unresponsive: data.unresponsive_engines ?? [],
+    };
   }
 
-  function formatResults(results: SearxngResult[]): string {
-    if (results.length === 0) return "No search results found.";
+  function describeUnresponsive(unresponsive: [string, string][]): string {
+    if (unresponsive.length === 0) return "";
+    return unresponsive.map(([engine, reason]) => `  - ${engine}: ${reason}`).join("\n");
+  }
+
+  function formatResults(results: SearxngResult[], unresponsive: [string, string][] = []): string {
+    if (results.length === 0) {
+      const failed = describeUnresponsive(unresponsive);
+      if (failed) {
+        return [
+          "No search results found.",
+          "",
+          `These engines failed on this request (${unresponsive.length}):`,
+          failed,
+          "",
+          "The instance is reachable, so this is upstream blocking rather than a config error. Retry once; SearXNG suspends failing engines for a while, which usually helps.",
+        ].join("\n");
+      }
+      return "No search results found, and the instance reported no engine errors. Try broader terms or more engines.";
+    }
     return results
       .map((r) => {
         const parts: string[] = [];
@@ -105,8 +142,11 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
       // --- Multi-hop: search → analyze → refine → merge ---------------------
       if (multi_hop) {
         try {
-          const firstResults = await doSearch(params);
-          if (firstResults.length === 0) return "No results for initial search.";
+          const first = await doSearch(params);
+          const firstResults = first.results;
+          if (firstResults.length === 0) {
+            return `No results for initial search.\n\n${formatResults([], first.unresponsive)}`;
+          }
 
           // Analyze results for refinement terms
           const titles = firstResults.map((r) => r.title).filter(Boolean).join(" ");
@@ -134,7 +174,8 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
           }
 
           params["q"] = secondQuery;
-          const secondResults = await doSearch(params);
+          const second = await doSearch(params);
+          const secondResults = second.results;
 
           // Merge: interleave results, dedup by URL
           const seen = new Set<string>();
@@ -149,7 +190,7 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
           }
 
           const formatted = merged.slice(0, maxResults);
-          let output = formatResults(formatted);
+          let output = formatResults(formatted, [...first.unresponsive, ...second.unresponsive]);
           if (refinements.length > 0) {
             output += `\n\n[Multi-hop: refined with "${refinements.join(", ")}"]`;
           }
@@ -161,7 +202,7 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
 
       // --- Standard search (with optional summarization) --------------------
       try {
-        const results = await doSearch(params);
+        const { results, unresponsive } = await doSearch(params);
 
         if (summarize && summarizeEnabled && results.length > 0) {
           // Fetch full content of top results for summarization
@@ -201,11 +242,11 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
           }
         }
 
-        return formatResults(results);
+        return formatResults(results, unresponsive);
       } catch (err: any) {
         const msg = err.message || String(err);
         if (msg.includes("aborted") || msg.includes("timeout")) {
-          return `Search timed out. Is your SearXNG instance running at ${searxngUrl}?`;
+          return `Search timed out after 30s at ${searxngUrl}. The instance is up but slow — SearXNG waits for every enabled engine, so check for engines that hang.`;
         }
         if (msg.includes("fetch") || msg.includes("connect") || msg.includes("ECONNREFUSED")) {
           return `Network error: ${msg}. Check that SearXNG is reachable.`;

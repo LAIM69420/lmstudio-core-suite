@@ -21,13 +21,37 @@ Web search through a self-hosted SearXNG instance, optionally injecting results 
 
 | Requirement | Detail |
 |---|---|
-| SearXNG | Reachable instance, default `http://localhost:8080`, with JSON output enabled in `settings.yml` |
+| SearXNG | Reachable instance, default `http://localhost:8080` |
+| JSON format | `search.formats` in SearXNG's `settings.yml` must include `json`, or every call fails with a clear parse error |
+| Healthy engines | SearXNG returns 200 with zero results when its engines are blocked. See *Engine health* below |
 
 ## Configuration
 
 `searxngUrl`, `maxResults`, `safeSearch`, `categories`, `injectPrompt`, `summarizeEnabled`, `summarizeMaxChars`.
 
 Configured in LM Studio under Integrations → searxng-search; field definitions live in `src/configSchematics.ts`.
+
+## Engine health
+
+This plugin can only report what SearXNG finds. A 200 response with an empty `results` array almost always means the upstream engines refused — CAPTCHA, HTTP 403, rate limiting — not a plugin fault.
+
+When that happens the tool now returns the engine failure list, for example:
+
+```
+No search results found.
+These engines failed on this request (3):
+  - brave: Suspended: too many requests
+  - google: access denied
+  - yandex: timeout
+```
+
+Fix it in SearXNG, not here:
+
+- Keep the image current. A 2026.5.16 image had four of five engines failing; 2026.11.15 restored them.
+- Check `/config` for which general engines are actually enabled. Recent versions enable only `duckduckgo`, `google cse`, and `brave` by default.
+- SearXNG suspends a failing engine for a while, so a single retry often succeeds.
+
+Requests time out after 30 seconds, because a cold SearXNG query fans out to every enabled engine and returns when the slowest finishes.
 
 ## Privileged surface
 
@@ -37,8 +61,11 @@ Sends your queries to the configured instance and returns whatever it finds. Wit
 
 | Symptom | Cause |
 |---|---|
-| Empty results | SearXNG returns JSON only if the `json` format is enabled in its settings |
-| Connection refused | Wrong port — the container may publish 8080 while the app expects another |
+| "SearXNG returned HTML instead of JSON" | `json` missing from `search.formats` |
+| "No search results found" with an engine list | Engines blocked upstream; see *Engine health* |
+| "No results ... no engine errors" | Query too narrow, or all engines returned nothing |
+| Timeout after 30s | An enabled engine hangs; drop it or lower `search.request_timeout` |
+| Connection refused | Wrong `searxngUrl`, or the container is not running |
 
 ## Example prompts
 

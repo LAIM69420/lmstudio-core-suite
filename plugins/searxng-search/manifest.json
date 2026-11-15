@@ -3,7 +3,7 @@
   "name": "searxng-search",
   "type": "plugin",
   "runner": "node",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/index.js",
   "icon": "thumbnail.png",
   "license": "MIT",
