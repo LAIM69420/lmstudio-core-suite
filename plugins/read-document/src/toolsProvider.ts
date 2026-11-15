@@ -157,7 +157,7 @@ export const toolsProvider: ToolsProvider = async (ctl) => {
       const securityErr = checkAllowed(resolved);
       if (securityErr) return securityErr;
 
-      let stat: fs.Stats;
+      let stat: fsSync.Stats;
       try {
         stat = await fs.stat(resolved);
       } catch (err: any) {

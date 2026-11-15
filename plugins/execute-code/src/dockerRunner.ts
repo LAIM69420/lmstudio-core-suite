@@ -27,8 +27,9 @@ function waitForContainer(cmd: string, args: string[], timeoutMs: number): Promi
     const proc = cp.execFile(cmd, args, {
       timeout: timeoutMs,
       maxBuffer: 10 * 1024 * 1024, // 10 MB
+      encoding: "utf8" as const,
       env: { ...process.env, NODE_OPTIONS: undefined },
-    } as cp.ExecFileOptionsWithBufferEncoding);
+    });
 
     let stdout = "";
     let stderr = "";

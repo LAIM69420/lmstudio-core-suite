@@ -30,8 +30,9 @@ function runWithStdin(
     const proc = cp.execFile(cmd, args, {
       timeout,
       maxBuffer: 1024 * 1024,
+      encoding: "utf8" as const,
       env: { ...process.env, NODE_OPTIONS: undefined },
-    } as cp.ExecFileOptionsWithBufferEncoding);
+    });
 
     let stdout = "";
     let stderr = "";
@@ -82,7 +83,7 @@ async function runRustSubprocess(code: string, timeoutMs: number): Promise<strin
       encoding: "utf-8",
       maxBuffer: 1024 * 1024,
     });
-    return runOut.stdout || runOut || "(no output)";
+    return runOut || "(no output)";
   } catch (err: any) {
     if (err.stdout || err.stderr) {
       const combined = [err.stdout, err.stderr].filter(Boolean).join("\n").trim();
